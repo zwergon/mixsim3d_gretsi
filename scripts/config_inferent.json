@@ -1,0 +1,8 @@
+{
+  "root_dir": "/mixsim3d/data/drp/minicubes",
+  "checkpoint_path": "/mixsim3d/data/drp/checkpoint/MixSim3d_checkpoint.pt",
+  "batch_size": 4,
+  "model_depth": 18,
+  "mean": 32928.34934854074,
+  "std": 6935.238201002077
+}

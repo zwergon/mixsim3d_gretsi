@@ -17,7 +17,6 @@ from drp.utils.config import Config
 from drp.utils.timer import Timer
 
 from drp.metrics.r2_metric import DrpR2Metric
-from drp.builder.VIT3d import EncoderViT
 from drp.utils.backbone import generate_model, Simpler3DNet, Simpler3DNet_dilated, Custom_ConvLSTM
 
 
@@ -36,33 +35,43 @@ class BaseMethod:
         self.backbone = self._create_model()
         self.backbone = self._distribute_model(self.backbone)
 
-        self.criterion = self._create_criterion(regression=self.config["regression"])
+        self.criterion = self._create_criterion(
+            regression=self.config["regression"])
 
         if self.config["tqdm"]:
             self.train_loop = self._tqdm_loop(self.__inner_train_regression)
             self.valid_loop = self._tqdm_loop(self.__inner_validate_regression)
         else:
             self.train_loop = self._batch_loop(self.__inner_train_regression)
-            self.valid_loop = self._batch_loop(self.__inner_validate_regression)
+            self.valid_loop = self._batch_loop(
+                self.__inner_validate_regression)
 
         if self.config["regression"]:
             if self.config["tqdm"]:
-                self.train_loop = self._tqdm_loop(self.__inner_train_regression)
-                self.valid_loop = self._tqdm_loop(self.__inner_validate_regression)
+                self.train_loop = self._tqdm_loop(
+                    self.__inner_train_regression)
+                self.valid_loop = self._tqdm_loop(
+                    self.__inner_validate_regression)
             else:
-                self.train_loop = self._batch_loop(self.__inner_train_regression)
-                self.valid_loop = self._batch_loop(self.__inner_validate_regression)
+                self.train_loop = self._batch_loop(
+                    self.__inner_train_regression)
+                self.valid_loop = self._batch_loop(
+                    self.__inner_validate_regression)
 
             self.r2_metric_train = DrpR2Metric().to(device=self.device)
             self.r2_metric_valid = DrpR2Metric().to(device=self.device)
 
         else:
             if self.config["tqdm"]:
-                self.train_loop = self._tqdm_loop(self.__inner_train_classification)
-                self.valid_loop = self._tqdm_loop(self.__inner_validate_classification)
+                self.train_loop = self._tqdm_loop(
+                    self.__inner_train_classification)
+                self.valid_loop = self._tqdm_loop(
+                    self.__inner_validate_classification)
             else:
-                self.train_loop = self._batch_loop(self.__inner_train_classification)
-                self.valid_loop = self._batch_loop(self.__inner_validate_classification)
+                self.train_loop = self._batch_loop(
+                    self.__inner_train_classification)
+                self.valid_loop = self._batch_loop(
+                    self.__inner_validate_classification)
 
             self.TopKAccuracy_Train = TopKAccuracy(num_classes=self.config["num_classes"],
                                                    top_k=(1, )).to(device=self.device)
@@ -92,7 +101,8 @@ class BaseMethod:
         elif self.config["model"] == "psimple":
             model = Simpler3DNet(activation=self.config["activation"])
         elif self.config["model"] == "psimple_dilated":
-            model = Simpler3DNet_dilated(activation=self.config["activation"], dilation=self.config["dilation"])
+            model = Simpler3DNet_dilated(
+                activation=self.config["activation"], dilation=self.config["dilation"])
         elif self.config["model"] == "lstm":
             model = Custom_ConvLSTM(hidden_dim=[8, 16, 32, 64])
         else:
@@ -104,7 +114,8 @@ class BaseMethod:
 
         if self.distributed:
             model = model.to(self.local_rank)
-            model = DDP(model, device_ids=[self.local_rank], output_device=self.local_rank, find_unused_parameters=True)
+            model = DDP(model, device_ids=[
+                        self.local_rank], output_device=self.local_rank, find_unused_parameters=True)
             model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
         else:
             model = model.to(device=self.device)
@@ -183,9 +194,10 @@ class BaseMethod:
                     if mean.iter % step == 0:
                         self.loss_tmp.append(mean.value)
                 if self.loss_tmp:
-                    avg_loss = sum(self.loss_tmp) / len(self.loss_tmp)  # Calculate average loss
+                    # Calculate average loss
+                    avg_loss = sum(self.loss_tmp) / len(self.loss_tmp)
                     self.logger.report_metric(
-                                    metrics={f"{description}_avg_loss": avg_loss}, epoch=epoch)
+                        metrics={f"{description}_avg_loss": avg_loss}, epoch=epoch)
                     self.loss_tmp.clear()  # Clear the list after logging
 
                 timer.log()
@@ -215,7 +227,8 @@ class BaseMethod:
 
                     if mean.iter % step == 0:
                         # Append the loss and iteration to the list
-                        self.loss_tmp.append({"iteration": mean.iter, "loss": mean.value})
+                        self.loss_tmp.append(
+                            {"iteration": mean.iter, "loss": mean.value})
 
                 # At the end of the epoch, log the accumulated losses
                 for tmp in self.loss_tmp:
@@ -283,7 +296,6 @@ class BaseMethod:
 
         return loss.item()
 
-
     def __inner_train_classification(self, batch, epoch, batch_idx):
         x, _, y_class = batch
 
@@ -333,7 +345,8 @@ class BaseMethod:
 
     @torch.no_grad()
     def gather_across_gpus(self, data):
-        gathered_data = [torch.zeros_like(data) for _ in range(dist.get_world_size())]
+        gathered_data = [torch.zeros_like(data)
+                         for _ in range(dist.get_world_size())]
         dist.all_gather(gathered_data, data)
         gathered_data = torch.cat(gathered_data, dim=0)
         return gathered_data
@@ -352,7 +365,8 @@ class BaseMethod:
         # computes metrics.
         if self.config["regression"]:
             metrics_train = self.r2_metric_train.compute(train_flag="Train")
-            metrics_valid = self.r2_metric_valid.compute(train_flag="Validation")
+            metrics_valid = self.r2_metric_valid.compute(
+                train_flag="Validation")
 
             precision = metrics_valid["r2_Validation"]
             self.r2_metric_train.reset()
@@ -413,7 +427,8 @@ class BaseMethod:
                 self.sampler_train.set_epoch(epoch)
 
             if self.rank == 0:
-                print(f"Epoch {epoch}")  # Print epoch number only on the primary GPU
+                # Print epoch number only on the primary GPU
+                print(f"Epoch {epoch}")
 
             # Execute training and validation for the epoch
             self.train(epoch, train_loader, train_loss)
@@ -432,4 +447,3 @@ class BaseMethod:
             self.logger.close()
         if self.distributed:
             torch.distributed.destroy_process_group()  # clean up
-
