@@ -4,6 +4,7 @@
     "task": "MixSim3d",
     "tracking_uri": "file:./mlruns",
     "model": "resnet",
+    "db": "/work/lecomtje/Repositories/mixsim3d_gretsi/tests/dataset_random.db",
     "volumes": [
         4419,
         4420

@@ -7,6 +7,7 @@
         4419,
         4420
     ],
+    "db": "/work/lecomtje/Repositories/mixsim3d_gretsi/dataset_random.db",
     "optimizer": "sgd",
     "activation": "relu",
     "seed": 1,

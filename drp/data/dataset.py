@@ -8,6 +8,7 @@ from torch.utils.data import Dataset
 from drp.utils.memmap import DataModality, load_cube
 from drp.utils.config import Config
 from torchvision.transforms import Normalize, Compose, ToTensor
+from drp.data.sqlite_dataset import SqliteDataset
 
 
 def find_class(permeability):
@@ -40,6 +41,43 @@ def get_indices(size, seed=1):
     random.shuffle(indices)
 
     return indices
+
+
+class Drp3dSqlite(Dataset):
+
+    def __init__(self, config: Config, train_flag: str = "Train", finetune=False):
+        self.root = config.root_path
+        self.db = config.db
+        self.train_flag = train_flag.lower()
+        self.dim = config.dim
+        self.transform = Compose([
+            ToTensor(),
+            Normalize(config.mean, config.std)
+        ])
+
+        with SqliteDataset(db_path=config.db) as db:
+            self.cubes = db.get_subcubes(
+                kind=self.train_flag, volumes=config.volumes)
+
+    def __len__(self):
+        return len(self.cubes)
+
+    def __getitem__(self, idx):
+        cube = self.cubes[idx]
+        offset = cube[0:3]
+        permeability = cube[3]
+        cube_id = cube[4]
+
+        minicube = load_cube(
+            os.path.join(self.root, str(cube_id)),
+            DataModality.GLV,
+            offset=offset,
+            subshape=[self.dim, self.dim, self.dim],
+        )
+
+        minicube = self.transform(minicube.astype(np.float32))
+
+        return minicube.unsqueeze(0), permeability, cube_id
 
 
 class Drp3dBaseDataset(Dataset):
